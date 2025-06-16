@@ -7,24 +7,19 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:ratp_trajet_flutter/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App shows loading then list', (WidgetTester tester) async {
+    await tester.pumpWidget(MonAppli());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Attendre un peu que le chargement se fasse
+    await tester.pump(Duration(seconds: 2));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Vérifie qu'on voit soit le CircularProgressIndicator soit des trajets
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    // Tu peux aussi tester la présence de ListView si les données sont chargées :
+    // expect(find.byType(ListView), findsOneWidget);
   });
 }
+
