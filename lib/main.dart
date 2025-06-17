@@ -346,7 +346,8 @@ class PageResultats extends StatelessWidget {
                     Column(
                       children: [
                         Icon(Icons.train, size: 48, color: Color(0xFF4EE2C0)),
-                        Text(i == 0 ? 'Arrivée' : (i == trajets.length - 1 ? 'Avril' : 'Milieu'), style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        SizedBox(height: 4),
+                        Text(t.position, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ],
