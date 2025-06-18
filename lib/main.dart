@@ -84,41 +84,38 @@ void rechercherTrajets() {
     lignesVersStations[t.ligne]!.add(t.arrivee);
   }
 
-  for (var ligne in lignesVersStations.keys) {
-    final stations = lignesVersStations[ligne]!;
-    if (stations.contains(stationDepart) && stations.contains(stationArrivee)) {
-      final direct = trajets.where(
-        (t) => t.depart == stationDepart && t.arrivee == stationArrivee && t.ligne == ligne,
-      ).toSet().toList();
+for (var ligne in lignesVersStations.keys) {
+  final stations = lignesVersStations[ligne]!;
+  if (stations.contains(stationDepart) && stations.contains(stationArrivee)) {
+    // Vérifie la position, même si le trajet exact n’est pas dans le JSON
+    final trajet = trajets.firstWhere(
+      (t) => t.depart == stationDepart && t.arrivee == stationArrivee && t.ligne == ligne,
+      orElse: () {
+        // s’il n'existe pas explicitement, on crée un trajet fictif avec position vide
+        return Trajet(
+          ligne: ligne,
+          depart: stationDepart!,
+          arrivee: stationArrivee!,
+          position: 'non précisée',
+        );
+      },
+    );
 
-
-            if (direct.isNotEmpty) {
-        final vus = <String>{};
-        final uniques = direct.where((t) {
-          final cle = '${t.ligne}_${t.depart}_${t.arrivee}';
-          final nouveau = !vus.contains(cle);
-          vus.add(cle);
-          return nouveau;
-        }).toList();
-
-        setState(() {
-          trajetsFiltres = [
-            Trajet(
-              ligne: direct.first.ligne,
-              depart: direct.first.depart,
-              arrivee: direct.first.arrivee,
-              position: 'Montée à l ${direct.first.position.toLowerCase()}',
-              intermediaire: null,
-            )
-];
-
-
-        });
-        return;
-      }
-
-    }
+    setState(() {
+      trajetsFiltres = [
+        Trajet(
+          ligne: trajet.ligne,
+          depart: trajet.depart,
+          arrivee: trajet.arrivee,
+          position: 'Montée à ${trajet.position.toLowerCase()}',
+          intermediaire: null,
+        )
+      ];
+    });
+    return;
   }
+}
+
 
   Set<String> lignesDepart = {};
   Set<String> lignesArrivee = {};
