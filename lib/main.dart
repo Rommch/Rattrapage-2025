@@ -87,11 +87,9 @@ void rechercherTrajets() {
 for (var ligne in lignesVersStations.keys) {
   final stations = lignesVersStations[ligne]!;
   if (stations.contains(stationDepart) && stations.contains(stationArrivee)) {
-    // Vérifie la position, même si le trajet exact n’est pas dans le JSON
     final trajet = trajets.firstWhere(
       (t) => t.depart == stationDepart && t.arrivee == stationArrivee && t.ligne == ligne,
       orElse: () {
-        // s’il n'existe pas explicitement, on crée un trajet fictif avec position vide
         return Trajet(
           ligne: ligne,
           depart: stationDepart!,
@@ -173,10 +171,72 @@ for (var ligne in lignesVersStations.keys) {
     }
   }
 
+ final correspondances = meilleursParCombinaison.values.toList();
+
+if (correspondances.isNotEmpty) {
   setState(() {
-    trajetsFiltres = meilleursParCombinaison.values.take(5).toList();
+    trajetsFiltres = correspondances.take(5).toList();
   });
+} else {
+  // Lance la recherche à 2 correspondances
+  rechercherTrajetsAvecDeuxCorrespondances(lignesVersStations);
 }
+
+}
+void rechercherTrajetsAvecDeuxCorrespondances(Map<String, Set<String>> lignesVersStations) {
+  Set<String> lignesDepart = {};
+  Set<String> lignesArrivee = {};
+
+  for (var ligne in lignesVersStations.entries) {
+    if (ligne.value.contains(stationDepart)) lignesDepart.add(ligne.key);
+    if (ligne.value.contains(stationArrivee)) lignesArrivee.add(ligne.key);
+  }
+
+  List<Trajet> resultats = [];
+
+  for (var ld in lignesDepart) {
+    for (var li in lignesVersStations.keys) {
+      if (li == ld) continue;
+
+      final inter1s = lignesVersStations[ld]!.intersection(lignesVersStations[li]!);
+      for (var inter1 in inter1s) {
+        for (var la in lignesArrivee) {
+          if (la == li || la == ld) continue;
+
+          final inter2s = lignesVersStations[li]!.intersection(lignesVersStations[la]!);
+          for (var inter2 in inter2s) {
+            final pos1 = trouverPosition(stationDepart!, inter1, ld);
+            final pos2 = trouverPosition(inter1, inter2, li);
+            final pos3 = trouverPosition(inter2, stationArrivee!, la);
+
+            final ligneCombinee = '$ld → $li → $la';
+            final positionCombinee =
+            'Montée à ${pos1.toLowerCase()} → ${pos2.toLowerCase()} → ${pos3.toLowerCase()}';
+
+
+            final combine = Trajet(
+              ligne: ligneCombinee,
+              depart: stationDepart!,
+              arrivee: stationArrivee!,
+              position: positionCombinee,
+              intermediaire: '$inter1 (L$li), $inter2 (L$la)',
+
+            );
+
+            resultats.add(combine);
+          }
+        }
+      }
+    }
+  }
+
+  if (resultats.isNotEmpty) {
+    setState(() {
+      trajetsFiltres = resultats.take(5).toList();
+    });
+  }
+}
+
 
 
 
@@ -393,23 +453,27 @@ class PageResultats extends StatelessWidget {
                     Column(
                       children: [
                         Icon(Icons.radio_button_checked, color: Colors.green),
-                        if (t.intermediaire != null) ...[
-                          Container(width: 2, height: 20, color: Colors.grey[300]),
-                          Icon(Icons.trip_origin, color: Colors.orange),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2.0),
-                            child: SizedBox(
-                              width: 60,
-                              child: Text(
-                                t.intermediaire!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 10, color: Colors.black87),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                              ),
-                            ),
-                          ),
-                        ],
+                         for (final step in t.intermediaire!.split(',')) ...[
+  Container(width: 2, height: 20, color: Colors.grey[300]),
+  Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(Icons.radio_button_unchecked, color: Colors.orange, size: 14),
+      SizedBox(width: 4),
+      SizedBox(
+        width: 60,
+        child: Text(
+          step.trim(),
+          style: TextStyle(fontSize: 10, color: Colors.orange[800]),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
+  ),
+],
+
+
                         Container(width: 2, height: 30, color: Colors.grey[300]),
                         Icon(Icons.location_on, color: Colors.pink),
                       ],
@@ -423,10 +487,18 @@ class PageResultats extends StatelessWidget {
                           Text('Métro ${t.ligne.split('→').first.trim()}', style: TextStyle(color: Colors.grey[700])),
                           SizedBox(height: 8),
                           if (t.intermediaire != null) ...[
-                            Text(t.intermediaire!, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800])),
-                            Text('Correspondance', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
-                            SizedBox(height: 8),
-                          ],
+  Text(
+    'Correspondance${t.intermediaire!.contains(',') ? 's' : ''} :',
+    style: TextStyle(color: Colors.orange[700], fontSize: 12),
+  ),
+  for (final step in t.intermediaire!.split(',')) 
+    Text(
+      step.trim(),
+      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800], fontSize: 13),
+    ),
+  SizedBox(height: 8),
+],
+
                           Text(t.arrivee, style: TextStyle(fontWeight: FontWeight.bold)),
                           Text('Métro ${t.ligne.split('→').last.trim()}', style: TextStyle(color: Colors.grey[700])),
                         ],
