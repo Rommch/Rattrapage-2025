@@ -178,7 +178,6 @@ if (correspondances.isNotEmpty) {
     trajetsFiltres = correspondances.take(5).toList();
   });
 } else {
-  // Lance la recherche à 2 correspondances
   rechercherTrajetsAvecDeuxCorrespondances(lignesVersStations);
 }
 
@@ -453,25 +452,28 @@ class PageResultats extends StatelessWidget {
                     Column(
                       children: [
                         Icon(Icons.radio_button_checked, color: Colors.green),
-                         for (final step in t.intermediaire!.split(',')) ...[
-  Container(width: 2, height: 20, color: Colors.grey[300]),
-  Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(Icons.radio_button_unchecked, color: Colors.orange, size: 14),
-      SizedBox(width: 4),
-      SizedBox(
-        width: 60,
-        child: Text(
-          step.trim(),
-          style: TextStyle(fontSize: 10, color: Colors.orange[800]),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+if (t.intermediaire != null) ...[
+  for (final step in t.intermediaire!.split(',')) ...[
+    Container(width: 2, height: 20, color: Colors.grey[300]),
+    Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.radio_button_unchecked, color: Colors.orange, size: 14),
+        SizedBox(width: 4),
+        SizedBox(
+          width: 60,
+          child: Text(
+            step.trim(),
+            style: TextStyle(fontSize: 10, color: Colors.orange[800]),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-      ),
-    ],
-  ),
+      ],
+    ),
+  ],
 ],
+
 
 
                         Container(width: 2, height: 30, color: Colors.grey[300]),
