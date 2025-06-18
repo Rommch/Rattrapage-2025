@@ -30,6 +30,16 @@ class PageAccueil extends StatefulWidget {
 class _PageAccueilState extends State<PageAccueil> {
   String? stationDepart;
   String? stationArrivee;
+  String trouverPosition(String depart, String arrivee, String ligne) {
+  try {
+    final trajet = trajets.firstWhere(
+      (t) => t.depart == depart && t.arrivee == arrivee && t.ligne == ligne,
+    );
+    return trajet.position;
+  } catch (e) {
+    return 'non précisée';
+  }
+}
 
   List<Trajet> trajets = [];
   List<String> toutesLesStations = [];
@@ -65,48 +75,113 @@ class _PageAccueilState extends State<PageAccueil> {
     print('Itinéraire Châtelet -> Bastille : $chemin');
   }
 
-  void rechercherTrajets() {
-    final trajetsDirecs = trajets.where((t) =>
-      t.depart == stationDepart && t.arrivee == stationArrivee
-    ).toList();
+void rechercherTrajets() {
+  Map<String, Set<String>> lignesVersStations = {};
 
-    if (trajetsDirecs.isEmpty) {
-      rechercherAvecCorrespondance();
-    } else {
-      setState(() {
-        trajetsFiltres = trajetsDirecs.take(5).toList();
-      });
+  for (var t in trajets) {
+    lignesVersStations.putIfAbsent(t.ligne, () => {});
+    lignesVersStations[t.ligne]!.add(t.depart);
+    lignesVersStations[t.ligne]!.add(t.arrivee);
+  }
+
+  for (var ligne in lignesVersStations.keys) {
+    final stations = lignesVersStations[ligne]!;
+    if (stations.contains(stationDepart) && stations.contains(stationArrivee)) {
+      final direct = trajets.where(
+        (t) => t.depart == stationDepart && t.arrivee == stationArrivee && t.ligne == ligne,
+      ).toSet().toList();
+
+
+            if (direct.isNotEmpty) {
+        final vus = <String>{};
+        final uniques = direct.where((t) {
+          final cle = '${t.ligne}_${t.depart}_${t.arrivee}';
+          final nouveau = !vus.contains(cle);
+          vus.add(cle);
+          return nouveau;
+        }).toList();
+
+        setState(() {
+          trajetsFiltres = [
+            Trajet(
+              ligne: direct.first.ligne,
+              depart: direct.first.depart,
+              arrivee: direct.first.arrivee,
+              position: 'Montée à l ${direct.first.position.toLowerCase()}',
+              intermediaire: null,
+            )
+];
+
+
+        });
+        return;
+      }
+
     }
   }
 
-  void rechercherAvecCorrespondance() {
-    List<List<Trajet>> resultats = [];
+  Set<String> lignesDepart = {};
+  Set<String> lignesArrivee = {};
 
-    for (var premier in trajets) {
-      if (premier.depart != stationDepart) continue;
+  for (var ligne in lignesVersStations.entries) {
+    if (ligne.value.contains(stationDepart)) lignesDepart.add(ligne.key);
+    if (ligne.value.contains(stationArrivee)) lignesArrivee.add(ligne.key);
+  }
 
-      for (var second in trajets) {
-        if (second.arrivee != stationArrivee) continue;
+  Map<String, Trajet> meilleursParCombinaison = {};
+  Map<String, int> scoreParCombinaison = {};
 
-        if (premier.arrivee == second.depart) {
-          resultats.add([premier, second]);
+  for (var ld in lignesDepart) {
+    for (var la in lignesArrivee) {
+      if (ld == la) continue;
+
+      final intersections = lignesVersStations[ld]!.intersection(lignesVersStations[la]!);
+      for (var correspondance in intersections) {
+        final premier = trajets.firstWhere(
+          (t) => t.depart == stationDepart && t.arrivee == correspondance && t.ligne == ld,
+          orElse: () => Trajet(
+            ligne: ld,
+            depart: stationDepart!,
+            arrivee: correspondance,
+            position: '',
+          ),
+        );
+
+        final second = trajets.firstWhere(
+          (t) => t.depart == correspondance && t.arrivee == stationArrivee && t.ligne == la,
+          orElse: () => Trajet(
+            ligne: la,
+            depart: correspondance,
+            arrivee: stationArrivee!,
+            position: '',
+          ),
+        );
+
+        final combine = Trajet(
+          ligne: '${ld} → ${la}',
+          depart: stationDepart!,
+          arrivee: stationArrivee!,
+          position: 'Montée à ${trouverPosition(stationDepart!, correspondance, ld).toLowerCase()} → ${trouverPosition(correspondance, stationArrivee!, la).toLowerCase()}',
+          intermediaire: correspondance,
+        );
+
+        final cle = '${ld}_${la}';
+        final score = 1; 
+
+        if (!meilleursParCombinaison.containsKey(cle) || score < scoreParCombinaison[cle]!) {
+          meilleursParCombinaison[cle] = combine;
+          scoreParCombinaison[cle] = score;
         }
       }
     }
-
-    final correspondances = resultats.take(5).toList();
-
-    setState(() {
-      trajetsFiltres = correspondances.map((pair) {
-        return Trajet(
-          ligne: '${pair[0].ligne} → ${pair[1].ligne}',
-          depart: pair[0].depart,
-          arrivee: pair[1].arrivee,
-          position: 'Correspondance à ${pair[0].arrivee}',
-        );
-      }).toList();
-    });
   }
+
+  setState(() {
+    trajetsFiltres = meilleursParCombinaison.values.take(5).toList();
+  });
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -321,11 +396,24 @@ class PageResultats extends StatelessWidget {
                     Column(
                       children: [
                         Icon(Icons.radio_button_checked, color: Colors.green),
-                        Container(
-                          width: 2,
-                          height: 30,
-                          color: Colors.grey[300],
-                        ),
+                        if (t.intermediaire != null) ...[
+                          Container(width: 2, height: 20, color: Colors.grey[300]),
+                          Icon(Icons.trip_origin, color: Colors.orange),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                            child: SizedBox(
+                              width: 60,
+                              child: Text(
+                                t.intermediaire!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 10, color: Colors.black87),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                            ),
+                          ),
+                        ],
+                        Container(width: 2, height: 30, color: Colors.grey[300]),
                         Icon(Icons.location_on, color: Colors.pink),
                       ],
                     ),
@@ -337,6 +425,11 @@ class PageResultats extends StatelessWidget {
                           Text(t.depart, style: TextStyle(fontWeight: FontWeight.bold)),
                           Text('Métro ${t.ligne.split('→').first.trim()}', style: TextStyle(color: Colors.grey[700])),
                           SizedBox(height: 8),
+                          if (t.intermediaire != null) ...[
+                            Text(t.intermediaire!, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800])),
+                            Text('Correspondance', style: TextStyle(color: Colors.orange[700], fontSize: 12)),
+                            SizedBox(height: 8),
+                          ],
                           Text(t.arrivee, style: TextStyle(fontWeight: FontWeight.bold)),
                           Text('Métro ${t.ligne.split('→').last.trim()}', style: TextStyle(color: Colors.grey[700])),
                         ],
@@ -347,7 +440,11 @@ class PageResultats extends StatelessWidget {
                       children: [
                         Icon(Icons.train, size: 48, color: Color(0xFF4EE2C0)),
                         SizedBox(height: 4),
-                        Text(t.position, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        Text(
+                          t.position,
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ],
@@ -360,6 +457,7 @@ class PageResultats extends StatelessWidget {
     );
   }
 }
+
 
 Map<String, List<Map<String, String>>> construireGraphe(List<dynamic> data) {
   final Map<String, List<Map<String, String>>> graphe = {};

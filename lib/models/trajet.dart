@@ -3,12 +3,14 @@ class Trajet {
   final String depart;
   final String arrivee;
   final String position;
+  final String? intermediaire;
 
   Trajet({
     required this.ligne,
     required this.depart,
     required this.arrivee,
     required this.position,
+    this.intermediaire,
   });
 
   factory Trajet.fromJson(Map<String, dynamic> json) {
